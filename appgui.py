@@ -219,7 +219,7 @@ class Notifier(Frame):
         # Get values from boxes
         sub_name = self.cbox.get()
         cat = self.category.get()
-        slimit = self.limit.get()
+        self.slimit = self.limit.get()
         self.popup = self.checkvar.get()
         self.cont = self.contvar.get()
 
@@ -231,7 +231,7 @@ class Notifier(Frame):
             return
 
         try:
-            stime = max(0, int(self.tentry.get()))
+            self.stime = max(0, int(self.tentry.get()))
         except Exception:
             self.text.tinsert("Error: time must be a number" + '\n')
             self.stop_scanning()
@@ -239,8 +239,8 @@ class Notifier(Frame):
 
         self.text.tinsert("Info: getting " + cat + " posts from /r/" + sub_name + '\n')
 
-        subcat = get_subreddit_cat(subreddit, cat)
-        self.get_results(subcat, slimit, stime)
+        self.subcat = get_subreddit_cat(subreddit, cat)
+        self.get_results()
 
     def stop_scanning(self):
         self.running = False
@@ -253,18 +253,20 @@ class Notifier(Frame):
         self.check.config(state="normal")
         self.contb.config(state="normal")
         self.parent.bind("<Return>", lambda x: self.scan_subreddit())
+        self.parent.after_cancel(self.afterv)
 
-    def get_results(self, subcat, slimit, stime):
+    def get_results(self):
         if self.running:
             now = time.time()
             for i in range(5):
                 try:
-                    submissions = [x for x in subcat(limit=slimit) if (now - x.created_utc) < stime]
+                    submissions = [x for x in self.subcat(limit=self.slimit) if (now - x.created_utc) < self.stime]
                     break
                 except Exception:
                     self.text.tinsert("Error: try " + str(i+1) + ", cannot access subreddit" + '\n')
-                    self.stop_scanning()
-                    return
+                    if i is 4:
+                        self.stop_scanning()
+                        return
 
             nows = time.strftime("%H:%M:%S", time.localtime())
 
@@ -275,8 +277,8 @@ class Notifier(Frame):
 
             self.manage_submissions(submissions)
             if self.cont:
-                self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(stime) + " seconds\n")
-                self.parent.after(stime*1000, lambda: self.get_results(subcat, slimit, stime))
+                self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(self.stime) + " seconds\n\n")
+                self.afterv = self.parent.after(self.stime*1000, self.get_results)
             else:
                 self.text.tinsert("Info: [" + nows + "] scanning finished" '\n')
                 self.stop_scanning()
@@ -286,7 +288,7 @@ class Notifier(Frame):
             s = sub[0]
             self.text.tinsert("Title: " + convert65536(s.title) + '\n')
             self.text.tinsert("Url: " + s.url + '\n')
-            self.text.tinsert("Created: " + pretty_date(s) + '\n\n')
+            self.text.tinsert("Created: " + pretty_date(s) + '\n')
             self.parent.update_idletasks()
             if self.popup:
                 if sys.platform.startswith('win'):
