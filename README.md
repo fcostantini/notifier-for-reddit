@@ -1,6 +1,7 @@
 ## Requirements  
 - **Python 3.5**
 - **TkInter** (should come with Python)
+- **praw** (install with pip)
 - **reddit credentials** (see [here](https://github.com/reddit/reddit/wiki/OAuth2))
 
 The reddit credentials must be placed in a file called reddit.keys with the following format:
