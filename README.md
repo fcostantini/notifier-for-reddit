@@ -3,6 +3,13 @@
 - **TkInter** (should come with Python)
 - **reddit credentials** (see [here](https://github.com/reddit/reddit/wiki/OAuth2))
 
+The reddit credentials must be placed in a file called reddit.keys with the following format:
+```
+your_client_id
+your_client_secret
+your_user_agent
+```
+
 ## Usage  
 Download the repo:
 

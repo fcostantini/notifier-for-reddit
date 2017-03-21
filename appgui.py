@@ -211,7 +211,9 @@ class Notifier(Frame):
 
         self.parent.unbind("<Return>")
         # Clean text box
+        self.text.config(state="normal")
         self.text.delete(1.0, 'end')
+        self.text.config(state="disabled")
 
         # Get values from boxes
         sub_name = self.entry.get()
@@ -261,17 +263,19 @@ class Notifier(Frame):
                 self.stop_scanning()
                 return
 
+            nows = time.strftime("%H:%M:%S", time.localtime())
+
             if not submissions:
-                self.text.tinsert("Info: no results found" '\n')
+                self.text.tinsert("Info: [" + nows + "] no results found" '\n')
             else:
-                self.text.tinsert("Info: " + str(len(submissions)) + " results found" '\n')
+                self.text.tinsert("Info: [" + nows + "] " + str(len(submissions)) + " results found" '\n')
 
             self.manage_submissions(submissions)
             if self.cont:
-                self.text.tinsert("Info: continuous mode, will check again in " + str(stime) + "seconds\n")
+                self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(stime) + " seconds\n")
                 self.parent.after(stime*1000, lambda: self.get_results(subcat, slimit, stime))
             else:
-                self.text.tinsert("Info: scanning finished" '\n')
+                self.text.tinsert("Info: [" + nows + "] scanning finished" '\n')
                 self.stop_scanning()
 
     def manage_submissions(self, sub):
