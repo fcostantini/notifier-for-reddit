@@ -2,7 +2,7 @@ import sys
 import time
 import webbrowser
 from tkinter import END, Frame, scrolledtext, StringVar, IntVar, OptionMenu, Toplevel, Checkbutton, BooleanVar
-from tkinter.ttk import Button, Entry
+from tkinter.ttk import Button, Entry, Combobox
 
 from reddit import *
 from utils import convert65536
@@ -133,13 +133,15 @@ class Notifier(Frame):
         self.bottom_top_frame = Frame(self.top_frame)
         self.bottom_top_frame.pack(side="bottom", fill="both", expand=False)
 
-        # Entry text box
-        self.entry = Entry(self.top_top_frame, width=60, foreground='gray')
-        self.parent.bind("<Tab>", self.text_callback)
-        self.entry.bind("<Button-1>", self.text_callback)
-        self.entry.bind("<Tab>", self.time_callback)
-        self.entry.insert(0, "Insert subreddit name")
-        self.entry.pack(side="left", padx=10, pady=10, expand=True)
+        # Entry combo box
+
+        self.cboxv = StringVar(self.top_top_frame)
+        self.cbox = Combobox(self.top_top_frame, value=self.cboxv, width=40)
+        self.cbox['values'] = ("all", "FreeGamesOnSteam", "funny", "news")
+        self.cbox.current(0)
+        self.cbox.bind("<Button-1>", self.text_callback)
+        self.cbox.bind("<Tab>", self.time_callback)
+        self.cbox.pack(side="left", padx=10, pady=10, expand=True)
 
         # Entry time box
         self.tentry = Entry(self.top_top_frame, width=8, foreground='gray')
@@ -188,8 +190,7 @@ class Notifier(Frame):
 
     def text_callback(self, event=None):
         if not self.text_clicked:
-            self.entry.delete(0, "end")
-            self.entry.config(foreground="black")
+            self.cbox.delete(0, "end")
             self.text_clicked = True
 
     def time_callback(self, event=None):
@@ -204,7 +205,7 @@ class Notifier(Frame):
         self.stopb.config(state="normal")
         self.omenu.config(state="disabled")
         self.lmenu.config(state="disabled")
-        self.entry.config(state="disabled")
+        self.cbox.config(state="disabled")
         self.tentry.config(state="disabled")
         self.check.config(state="disabled")
         self.contb.config(state="disabled")
@@ -216,7 +217,7 @@ class Notifier(Frame):
         self.text.config(state="disabled")
 
         # Get values from boxes
-        sub_name = self.entry.get()
+        sub_name = self.cbox.get()
         cat = self.category.get()
         slimit = self.limit.get()
         self.popup = self.checkvar.get()
@@ -247,7 +248,7 @@ class Notifier(Frame):
         self.stopb.config(state="disabled")
         self.omenu.config(state="normal")
         self.lmenu.config(state="normal")
-        self.entry.config(state="normal")
+        self.cbox.config(state="normal")
         self.tentry.config(state="normal")
         self.check.config(state="normal")
         self.contb.config(state="normal")
@@ -256,12 +257,14 @@ class Notifier(Frame):
     def get_results(self, subcat, slimit, stime):
         if self.running:
             now = time.time()
-            try:
-                submissions = [x for x in subcat(limit=slimit) if (now - x.created_utc) < stime]
-            except Exception:
-                self.text.tinsert("Error: cannot access subreddit" + '\n')
-                self.stop_scanning()
-                return
+            for i in range(5):
+                try:
+                    submissions = [x for x in subcat(limit=slimit) if (now - x.created_utc) < stime]
+                    break
+                except Exception:
+                    self.text.tinsert("Error: try " + str(i+1) + ", cannot access subreddit" + '\n')
+                    self.stop_scanning()
+                    return
 
             nows = time.strftime("%H:%M:%S", time.localtime())
 
@@ -286,7 +289,7 @@ class Notifier(Frame):
             self.text.tinsert("Created: " + pretty_date(s) + '\n\n')
             self.parent.update_idletasks()
             if self.popup:
-                if sys.platform is 'win32':
+                if sys.platform.startswith('win'):
                     import winsound
                     winsound.PlaySound("media/jamaica.wav", winsound.SND_FILENAME)
                 Dialog(self.parent, s.url)
