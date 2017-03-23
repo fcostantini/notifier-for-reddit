@@ -2,7 +2,7 @@ import sys
 import time
 import webbrowser
 from tkinter import END, Frame, scrolledtext, StringVar, IntVar, OptionMenu, Toplevel, Checkbutton, BooleanVar
-from tkinter.ttk import Button, Entry, Combobox
+from tkinter.ttk import Button, Entry, Combobox, Label
 
 from reddit import *
 from utils import convert65536
@@ -11,11 +11,10 @@ from utils import convert65536
 # Custom dialog box
 class Dialog(Toplevel):
 
-    def __init__(self, parent, url, title=None):
+    def __init__(self, parent, url, title):
         Toplevel.__init__(self, parent)
         self.transient(parent)
-        if title:
-            self.title(title)
+        self.title = title
         self.parent = parent
         self.url = url
         self.result = None
@@ -31,18 +30,27 @@ class Dialog(Toplevel):
         self.wait_window(self)
 
     def buttonbox(self):
-        box = Frame(self)
-        w = Button(box, text="Open link", width=10, command=self.ok, default="active")
-        w.pack(side="left", padx=5, pady=5)
-        w = Button(box, text="Close", width=10, command=self.close)
-        w.pack(side="left", padx=5, pady=5)
+        self.top_frame = Frame(self)
+        self.bottom_frame = Frame(self)
+        self.top_frame.pack(side="top", fill="both", expand=False)
+        self.bottom_frame.pack(side="bottom", fill="both", expand=False)
+        self.bottom_right_frame = Frame(self.bottom_frame)
+        self.bottom_left_frame = Frame(self.bottom_frame)
+        self.bottom_right_frame.pack(side="right", fill="both", expand=True)
+        self.bottom_left_frame.pack(side="left", fill="both", expand=True)
 
-        self.bind("<Return>", self.ok)
+        l = Label(self.top_frame, text=convert65536(self.title))
+        l.pack()
+
+        w = Button(self.bottom_left_frame, text="Open link", width=10, command=self.open, default="active")
+        w.pack(side="right", padx=10, pady=5)
+        w = Button(self.bottom_right_frame, text="Close", width=10, command=self.close)
+        w.pack(side="left", padx=10, pady=5)
+
+        self.bind("<Return>", self.open)
         self.bind("<Escape>", self.close)
 
-        box.pack()
-
-    def ok(self, event=None):
+    def open(self, event=None):
         webbrowser.open(self.url)
         self.initial_focus.focus_set()  # put focus back
         self.withdraw()
@@ -117,6 +125,7 @@ class Notifier(Frame):
         self.text_clicked = False
         self.time_clicked = False
         self.running = False
+        self.afterv = None
         self.initUI()
 
     def initUI(self):
@@ -253,7 +262,8 @@ class Notifier(Frame):
         self.check.config(state="normal")
         self.contb.config(state="normal")
         self.parent.bind("<Return>", lambda x: self.scan_subreddit())
-        self.parent.after_cancel(self.afterv)
+        if self.afterv:
+            self.parent.after_cancel(self.afterv)
 
     def get_results(self):
         if self.running:
@@ -294,5 +304,5 @@ class Notifier(Frame):
                 if sys.platform.startswith('win'):
                     import winsound
                     winsound.PlaySound("media/jamaica.wav", winsound.SND_FILENAME)
-                Dialog(self.parent, s.url)
+                Dialog(self.parent, s.url, s.title)
             self.parent.after(750, lambda: self.manage_submissions(sub[1:]))
