@@ -125,7 +125,8 @@ class Notifier(Frame):
         self.text_clicked = False
         self.time_clicked = False
         self.running = False
-        self.afterv = None
+        self.afterv = []
+        self.max_tries = 5
         self.initUI()
 
     def initUI(self):
@@ -249,6 +250,11 @@ class Notifier(Frame):
         self.text.tinsert("Info: getting " + cat + " posts from /r/" + sub_name + '\n')
 
         self.subcat = get_subreddit_cat(subreddit, cat)
+        self.tries = 0
+        self.done_trying = False
+        self.started_managing = False
+        self.done_managing = False
+        self.submissions = None
         self.get_results()
 
     def stop_scanning(self):
@@ -262,47 +268,60 @@ class Notifier(Frame):
         self.check.config(state="normal")
         self.contb.config(state="normal")
         self.parent.bind("<Return>", lambda x: self.scan_subreddit())
-        if self.afterv:
-            self.parent.after_cancel(self.afterv)
+        for a in self.afterv:
+            self.parent.after_cancel(a)
+        del self.afterv[:]
 
     def get_results(self):
         if self.running:
             now = time.time()
-            for i in range(5):
-                try:
-                    submissions = [x for x in self.subcat(limit=self.slimit) if (now - x.created_utc) < self.stime]
-                    break
-                except Exception:
-                    self.text.tinsert("Error: try " + str(i+1) + ", cannot access subreddit" + '\n')
-                    if i is 4:
-                        self.stop_scanning()
-                        return
-
             nows = time.strftime("%H:%M:%S", time.localtime())
+            if not self.done_trying:
+                if self.tries < self.max_tries:
+                    try:
+                        self.submissions = [x for x in self.subcat(limit=self.slimit) if (now - x.created_utc) < self.stime]
+                        self.done_trying = True
+                    except Exception:
+                        self.text.tinsert("Error: [" + nows + "] try n. " + str(self.tries+1) + ", cannot access subreddit" + '\n')
+                        self.tries += 1
+                        self.afterv.append(self.parent.after(5000, self.get_results))
+                else:
+                    self.text.tinsert("Error: [" + nows + "] couldn't access subreddit. Stopping scan." + '\n')
+                    self.stop_scanning()
+                    self.done_trying = True
+                self.tries = 0
 
-            if not submissions:
-                self.text.tinsert("Info: [" + nows + "] no results found" '\n')
-            else:
-                self.text.tinsert("Info: [" + nows + "] " + str(len(submissions)) + " results found" '\n')
+            if self.done_trying:
+                if not self.submissions:
+                    if self.started_managing:
+                        self.done_managing = True
+                    else:
+                        self.text.tinsert("Info: [" + nows + "] no results found" '\n')
+                else:
+                    if not self.started_managing:
+                        self.text.tinsert("Info: [" + nows + "] " + str(len(self.submissions)) + " results found" '\n')
+                        self.started_managing = True
+                    s = self.submissions[0]
+                    self.text.tinsert("Title: " + convert65536(s.title) + '\n')
+                    self.text.tinsert("Url: " + s.url + '\n')
+                    self.text.tinsert("Created: " + pretty_date(s) + '\n\n')
+                    self.parent.update_idletasks()
+                    if self.popup:
+                        if sys.platform.startswith('win'):
+                            import winsound
+                            winsound.PlaySound("media/jamaica.wav", winsound.SND_FILENAME)
+                        Dialog(self.parent, s.url, s.title)
+                    self.submissions = self.submissions[1:]
+                    self.afterv.append(self.parent.after(1000, self.get_results))
 
-            self.manage_submissions(submissions)
-            if self.cont:
-                self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(self.stime) + " seconds\n\n")
-                self.afterv = self.parent.after(self.stime*1000, self.get_results)
-            else:
-                self.text.tinsert("Info: [" + nows + "] scanning finished" '\n')
-                self.stop_scanning()
+                if self.done_managing:
+                    if self.cont:
+                        self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(self.stime) + " seconds\n\n")
+                        self.afterv.append(self.parent.after(self.stime*1000, self.get_results))
+                        self.done_trying = False
+                        self.started_managing = False
+                        self.done_managing = False
+                    else:
+                        self.text.tinsert("Info: [" + nows + "] scanning finished" '\n')
+                        self.stop_scanning()
 
-    def manage_submissions(self, sub):
-        if sub:
-            s = sub[0]
-            self.text.tinsert("Title: " + convert65536(s.title) + '\n')
-            self.text.tinsert("Url: " + s.url + '\n')
-            self.text.tinsert("Created: " + pretty_date(s) + '\n')
-            self.parent.update_idletasks()
-            if self.popup:
-                if sys.platform.startswith('win'):
-                    import winsound
-                    winsound.PlaySound("media/jamaica.wav", winsound.SND_FILENAME)
-                Dialog(self.parent, s.url, s.title)
-            self.parent.after(750, lambda: self.manage_submissions(sub[1:]))
