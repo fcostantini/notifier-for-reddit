@@ -5,7 +5,7 @@ from tkinter import END, Frame, scrolledtext, StringVar, IntVar, OptionMenu, Top
 from tkinter.ttk import Button, Entry, Combobox, Label
 
 from reddit import *
-from utils import convert65536
+from utils import convert65536, nows
 
 
 # Custom dialog box
@@ -103,6 +103,7 @@ class CustomText(scrolledtext.ScrolledText):
         self.insert(END, msg)
         self.configure(state="disabled")
         self.highlight()
+        self.frame.update_idletasks()
         self.see(END)
 
 
@@ -272,34 +273,34 @@ class Notifier(Frame):
             self.parent.after_cancel(a)
         del self.afterv[:]
 
+
+
     def get_results(self):
         if self.running:
             now = time.time()
-            nows = time.strftime("%H:%M:%S", time.localtime())
             if not self.done_trying:
                 if self.tries < self.max_tries:
                     try:
                         self.submissions = [x for x in self.subcat(limit=self.slimit) if (now - x.created_utc) < self.stime]
                         self.done_trying = True
                     except Exception:
-                        self.text.tinsert("Error: [" + nows + "] try n. " + str(self.tries+1) + ", cannot access subreddit" + '\n')
+                        self.text.tinsert("Error: [" + nows() + "] try n. " + str(self.tries+1) + ", cannot access subreddit" + '\n')
                         self.tries += 1
                         self.afterv.append(self.parent.after(5000, self.get_results))
                 else:
-                    self.text.tinsert("Error: [" + nows + "] couldn't access subreddit. Stopping scan." + '\n')
+                    self.text.tinsert("Error: [" + nows() + "] couldn't access subreddit. Stopping scan." + '\n')
                     self.stop_scanning()
                     self.done_trying = True
                 self.tries = 0
 
             if self.done_trying:
                 if not self.submissions:
-                    if self.started_managing:
-                        self.done_managing = True
-                    else:
-                        self.text.tinsert("Info: [" + nows + "] no results found" '\n')
+                    if not self.started_managing:
+                        self.text.tinsert("Info: [" + nows() + "] no results found" '\n')
+                    self.done_managing = True
                 else:
                     if not self.started_managing:
-                        self.text.tinsert("Info: [" + nows + "] " + str(len(self.submissions)) + " results found" '\n')
+                        self.text.tinsert("Info: [" + nows() + "] " + str(len(self.submissions)) + " results found" '\n')
                         self.started_managing = True
                     s = self.submissions[0]
                     self.text.tinsert("Title: " + convert65536(s.title) + '\n')
@@ -316,12 +317,12 @@ class Notifier(Frame):
 
                 if self.done_managing:
                     if self.cont:
-                        self.text.tinsert("Info: [" + nows + "] continuous mode, will check again in " + str(self.stime) + " seconds\n\n")
+                        self.text.tinsert("Info: [" + nows() + "] continuous mode, will check again in " + str(self.stime) + " seconds\n\n")
                         self.afterv.append(self.parent.after(self.stime*1000, self.get_results))
                         self.done_trying = False
                         self.started_managing = False
                         self.done_managing = False
                     else:
-                        self.text.tinsert("Info: [" + nows + "] scanning finished" '\n')
+                        self.text.tinsert("Info: [" + nows() + "] scanning finished" '\n')
                         self.stop_scanning()
 

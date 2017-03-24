@@ -1,5 +1,5 @@
 import re
-
+import time
 
 def convert65536(s):
     l = list(s)
@@ -25,3 +25,7 @@ def convert65536back(s):
         s = re.sub(r"{\d\d\d\d\d+ū}", parse65536, s)
     s = re.sub(r"ᗍ(\d\d\d\d\d+)ūᗍ", r"{\1ū}", s)
     return s
+
+
+def nows():
+    return time.strftime("%H:%M:%S", time.localtime())
